@@ -1,0 +1,34 @@
+name: Weekly DB Backup
+
+on:
+  schedule:
+    - cron: '0 20 * * 0'   # UTC Sunday 20:00 = Bangladesh Monday 02:00
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Export critical tables to JSON
+        run: |
+          TABLES="clients items suppliers customers grn sales_orders delivery_challans stock_ledger expenses invoices employees transporters transport_requests"
+          DATE=$(date +%Y%m%d)
+          mkdir -p backup
+
+          for TABLE in $TABLES; do
+            echo "Exporting $TABLE..."
+            curl -s \
+              "${{ secrets.SUPABASE_URL }}/rest/v1/${TABLE}?select=*&limit=10000" \
+              -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+              -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+              > "backup/${TABLE}_${DATE}.json"
+            echo "  -> $(wc -c < backup/${TABLE}_${DATE}.json) bytes"
+          done
+          echo "Backup complete for $DATE"
+
+      - name: Upload to GitHub Artifacts (90 days retention)
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backup/*.json
+          retention-days: 90

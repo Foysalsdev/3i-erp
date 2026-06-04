@@ -1,0 +1,23 @@
+name: Daily ERP Alerts
+
+on:
+  schedule:
+    - cron: '0 18 * * *'   # UTC 18:00 = Bangladesh midnight
+  workflow_dispatch:        # manual trigger for testing
+
+jobs:
+  run-alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Supabase Daily Alert Function
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/daily-alerts" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Content-Type: application/json")
+          echo "Response status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "Alert function failed with status $STATUS"
+            exit 1
+          fi
+          echo "Daily alerts processed successfully"

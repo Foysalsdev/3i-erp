@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* SAP 72 Font - use system fonts as fallback */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #F5F6F7;
+  color: #1D2D3E;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F5F6F7;
+}
+::-webkit-scrollbar-thumb {
+  background: #C5D0DC;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #556B82;
+}
+
+/* Focus ring utility */
+.sap-focus-ring {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 112, 242, 0.25);
+}
+
+/* Sidebar transition */
+.sidebar-transition {
+  transition: width 200ms ease, transform 200ms ease;
+}
+
+/* Table hover */
+.sap-table-row:hover {
+  background-color: #F0F4F9;
+}
+
+/* Status badge styles */
+.badge-draft     { @apply bg-gray-100 text-gray-600; }
+.badge-submitted { @apply bg-orange-50 text-orange-700 border border-orange-200; }
+.badge-approved  { @apply bg-blue-50 text-blue-700 border border-blue-200; }
+.badge-posted    { @apply bg-green-50 text-green-700 border border-green-200; }
+.badge-closed    { @apply bg-green-100 text-green-800; }
+.badge-cancelled { @apply bg-red-50 text-red-700 border border-red-200; }
+
+/* Animation utilities */
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes slide-in-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-slide-in-right { animation: slide-in-right 200ms ease forwards; }
+.animate-slide-in-up    { animation: slide-in-up 200ms ease forwards; }
+.animate-fade-in        { animation: fade-in 150ms ease forwards; }
+
+/* Dark mode base (optional, not fully implemented in Phase 1) */
+.dark body {
+  background-color: #0F1923;
+  color: #D1DDE8;
+}

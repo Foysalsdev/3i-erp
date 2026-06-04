@@ -1,0 +1,26 @@
+name: Monthly Cleanup
+
+on:
+  schedule:
+    - cron: '0 19 1 * *'   # 1st of every month, UTC 19:00 = Bangladesh 01:00
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run monthly cleanup Edge Function
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/monthly-cleanup" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Content-Type: application/json")
+          echo "Cleanup status: $STATUS"
+
+      - name: Check DB size
+        run: |
+          curl -s -X POST \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/get_db_size" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Content-Type: application/json" | echo "DB Size: $(cat)"
