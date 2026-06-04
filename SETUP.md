@@ -193,9 +193,5 @@ Start a new chat with:
 **"Cannot find module":** Run `npm install` again
 
 **Blank page:** Open browser console — likely missing `.env.local` variables
-git init
-git add .
-git commit -m "Initial ERP setup"
-git branch -M main
-git remote add origin https://github.com/foysalsharkar1998-art/3i-ERP-PH2.git
-git push -u origin main
+
+
