@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="3i Logistics ERP">
+  <rect width="512" height="512" rx="96" fill="#354A5E"/>
+  <rect x="64" y="64" width="384" height="384" rx="72" fill="#0A6ED1"/>
+  <path d="M140 164h128c32 0 56 22 56 52 0 20-10 36-28 45 24 8 39 27 39 53 0 34-27 58-64 58H140v-64h121c9 0 16-6 16-15s-7-15-16-15H168v-56h87c9 0 16-6 16-14s-7-14-16-14H140v-60z" fill="#FFFFFF"/>
+  <path d="M354 164h44v44h-44v-44zm0 76h44v132h-44V240z" fill="#FFFFFF"/>
+</svg>
