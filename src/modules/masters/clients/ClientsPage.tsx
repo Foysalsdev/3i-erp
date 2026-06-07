@@ -97,6 +97,14 @@ export function ClientsPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchData()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [fetchData])
+
   function openNew() {
     setEditItem(null)
     reset({ sap_enabled:false, status:'Active', client_type:'3PL Client' })
@@ -258,3 +266,4 @@ export function ClientsPage() {
     </div>
   )
 }
+

@@ -111,6 +111,14 @@ export function ItemsPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchData()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [fetchData])
+
   async function checkSapUnique(code: string) {
     if (!code.trim()) { setSapCodeError(''); return }
     const { data } = await db('items').select('id').eq('sap_material_code', code.trim()).maybeSingle()
@@ -298,3 +306,4 @@ export function ItemsPage() {
     </div>
   )
 }
+

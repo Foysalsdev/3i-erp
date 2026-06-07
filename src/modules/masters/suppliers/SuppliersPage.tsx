@@ -110,6 +110,14 @@ export function SuppliersPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchData()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [fetchData])
+
   function openNew() {
     setEditItem(null)
     reset({ payment_terms:'30 Days', status:'Active', country:'Bangladesh' })
@@ -281,3 +289,4 @@ export function SuppliersPage() {
     </div>
   )
 }
+

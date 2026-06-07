@@ -74,6 +74,14 @@ function WarehouseTab() {
   }, [])
   useEffect(()=>{ fetch() },[fetch])
 
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetch()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [fetch])
+
   function openNew() { setEdit(null); reset({}); setOpen(true) }
   function openEdit(w:WHRow) { setEdit(w); reset({ warehouse_name:w.warehouse_name, warehouse_code:w.warehouse_code, address:w.address??'', total_area_sqft:w.total_area_sqft?String(w.total_area_sqft):'' }); setOpen(true) }
 
@@ -162,6 +170,14 @@ function ZoneTab() {
   }, [])
   useEffect(()=>{ fetch() },[fetch])
 
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetch()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [fetch])
+
   function openNew() { setEdit(null); reset({ client_id:activeClient }); setOpen(true) }
   function openEdit(z:ZoneRow) { setEdit(z); reset({ warehouse_id:z.warehouse_id, zone_name:z.zone_name, zone_code:z.zone_code, client_id:z.client_id??activeClient, area_sqft:z.area_sqft?String(z.area_sqft):'' }); setOpen(true) }
 
@@ -238,6 +254,14 @@ function RackTab() {
     setLoading(false)
   }, [])
   useEffect(()=>{ fetch() },[fetch])
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetch()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [fetch])
 
   function openNew() { setEdit(null); reset({}); setOpen(true) }
   function openEdit(r:RackRow) { setEdit(r); reset({ zone_id:r.zone_id, rack_name:r.rack_name, rack_code:r.rack_code, total_bins:r.total_bins?String(r.total_bins):'' }); setOpen(true) }
@@ -316,6 +340,14 @@ function BinTab() {
     setLoading(false)
   }, [page, search])
   useEffect(()=>{ fetch() },[fetch])
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetch()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [fetch])
 
   function openNew() { setEdit(null); reset({ bin_type:'Normal', status:'Available' }); setOpen(true) }
   function openEdit(b:BinRow) { setEdit(b); reset({ rack_id:b.rack_id, bin_code:b.bin_code, bin_type:b.bin_type, capacity:b.capacity?String(b.capacity):'', status:b.status }); setOpen(true) }
@@ -408,3 +440,4 @@ export function WarehousesPage() {
     </div>
   )
 }
+

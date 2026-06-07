@@ -118,6 +118,14 @@ export function CustomersPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchData()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [fetchData])
+
   async function checkSapUnique(code: string) {
     if (!code.trim()) { setSapCodeError(''); return }
     const { data } = await db('customers').select('id').eq('sap_customer_code', code.trim()).maybeSingle()
@@ -311,3 +319,4 @@ export function CustomersPage() {
     </div>
   )
 }
+

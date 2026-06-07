@@ -11,7 +11,7 @@
 ## Step 1: Clone & Install
 
 ```bash
-git clone https://github.com/foysalsharkar1998-art/3i-erp.git
+git clone https://github.com/your-org/3i-erp.git
 cd 3i-erp
 npm install
 ```
@@ -193,5 +193,3 @@ Start a new chat with:
 **"Cannot find module":** Run `npm install` again
 
 **Blank page:** Open browser console — likely missing `.env.local` variables
-
-
