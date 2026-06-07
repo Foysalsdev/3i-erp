@@ -43,6 +43,7 @@
     "typescript": "^5.2.2",
     "vite": "^5.3.4",
     "vite-plugin-pwa": "^0.20.1",
-    "workbox-window": "^7.1.0"
+    "workbox-window": "^7.1.0",
+    "tailwindcss-animate": "^1.0.7"
   }
 }
