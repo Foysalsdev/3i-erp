@@ -17,14 +17,12 @@ const SuppliersPage  = lazy(() => import('./modules/masters/suppliers/SuppliersP
 const CustomersPage  = lazy(() => import('./modules/masters/customers/CustomersPage').then(m => ({ default: m.CustomersPage })))
 const WarehousesPage = lazy(() => import('./modules/masters/warehouses/WarehousesPage').then(m => ({ default: m.WarehousesPage })))
 
-// ─── Inner: hooks that need router context ────────────────
 function AppInner() {
   useRealtimeSubscriptions()
   useKeyboardShortcuts()
   return null
 }
 
-// ─── Page loading fallback ────────────────────────────────
 function PageLoader() {
   return (
     <div className="flex items-center justify-center h-48">
@@ -33,7 +31,6 @@ function PageLoader() {
   )
 }
 
-// ─── Auth Guard ───────────────────────────────────────────
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, isInitialized, isLoading } = useAuthStore()
 
@@ -55,7 +52,6 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-// ─── App ──────────────────────────────────────────────────
 export default function App() {
   const { initialize } = useAuthStore()
 
@@ -77,44 +73,44 @@ export default function App() {
             </RequireAuth>
           }
         >
-          {/* Dashboard */}
-          <Route index element={<DashboardPage />} />
+          {/* Dashboard — both / and /dashboard work */}
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardPage />} />
 
-          {/* ── Masters (Phase 2 complete) ── */}
+          {/* ── Masters ── */}
           <Route path="masters/clients"    element={<Suspense fallback={<PageLoader />}><ClientsPage /></Suspense>} />
           <Route path="masters/items"      element={<Suspense fallback={<PageLoader />}><ItemsPage /></Suspense>} />
           <Route path="masters/suppliers"  element={<Suspense fallback={<PageLoader />}><SuppliersPage /></Suspense>} />
           <Route path="masters/customers"  element={<Suspense fallback={<PageLoader />}><CustomersPage /></Suspense>} />
           <Route path="masters/warehouses" element={<Suspense fallback={<PageLoader />}><WarehousesPage /></Suspense>} />
 
-          {/* ── Inbound (Phase 3) ── */}
+          {/* ── Inbound ── */}
           <Route path="inbound/po"  element={<ComingSoonPage moduleName="Purchase Order" />} />
           <Route path="inbound/grn" element={<ComingSoonPage moduleName="GRN" />} />
           <Route path="inbound/prn" element={<ComingSoonPage moduleName="PRN" />} />
 
-          {/* ── Outbound (Phase 3) ── */}
+          {/* ── Outbound ── */}
           <Route path="outbound/so"             element={<ComingSoonPage moduleName="Sales Order" />} />
           <Route path="outbound/dc"             element={<ComingSoonPage moduleName="Delivery Challan" />} />
           <Route path="outbound/gate-pass"      element={<ComingSoonPage moduleName="Gate Pass" />} />
           <Route path="outbound/srn"            element={<ComingSoonPage moduleName="SRN" />} />
           <Route path="outbound/invoice-cancel" element={<ComingSoonPage moduleName="Invoice Cancel" />} />
 
-          {/* ── Stock (Phase 4) ── */}
+          {/* ── Stock ── */}
           <Route path="stock/ledger"      element={<ComingSoonPage moduleName="Stock Ledger" />} />
-          <Route path="stock/exchange"    element={<ComingSoonPage moduleName="Exchange / Replacement" />} />
-          <Route path="stock/transfer"    element={<ComingSoonPage moduleName="Stock Transfer" />} />
-          <Route path="stock/adjustment"  element={<ComingSoonPage moduleName="Stock Adjustment" />} />
+          <Route path="stock/transfers"   element={<ComingSoonPage moduleName="Stock Transfer" />} />
+          <Route path="stock/adjustments" element={<ComingSoonPage moduleName="Stock Adjustment" />} />
           <Route path="stock/damaged"     element={<ComingSoonPage moduleName="Damaged Stock" />} />
           <Route path="stock/cycle-count" element={<ComingSoonPage moduleName="Cycle Count" />} />
 
-          {/* ── Finance (Phase 5) ── */}
+          {/* ── Finance ── */}
           <Route path="finance/expenses" element={<ComingSoonPage moduleName="Expense Entry" />} />
           <Route path="finance/budget"   element={<ComingSoonPage moduleName="Budget Management" />} />
           <Route path="finance/invoices" element={<ComingSoonPage moduleName="Client Invoice" />} />
           <Route path="finance/payments" element={<ComingSoonPage moduleName="Payment Recording" />} />
           <Route path="finance/ledger"   element={<ComingSoonPage moduleName="Finance Ledger" />} />
 
-          {/* ── HR (Phase 5) ── */}
+          {/* ── HR ── */}
           <Route path="hr/employees"  element={<ComingSoonPage moduleName="Employee Master" />} />
           <Route path="hr/attendance" element={<ComingSoonPage moduleName="Attendance" />} />
           <Route path="hr/leave"      element={<ComingSoonPage moduleName="Leave Management" />} />
@@ -122,29 +118,26 @@ export default function App() {
           <Route path="hr/labour"     element={<ComingSoonPage moduleName="Labour Log" />} />
           <Route path="hr/tasks"      element={<ComingSoonPage moduleName="Task / Checklist" />} />
 
-          {/* ── Transport (Phase 5) ── */}
-          <Route path="transport/masters"   element={<ComingSoonPage moduleName="Transporter Master" />} />
-          <Route path="transport/vehicles"  element={<ComingSoonPage moduleName="Vehicle Master" />} />
-          <Route path="transport/drivers"   element={<ComingSoonPage moduleName="Driver Master" />} />
-          <Route path="transport/trips"     element={<ComingSoonPage moduleName="Transport Requests & Trips" />} />
-          <Route path="transport/bills"     element={<ComingSoonPage moduleName="Transporter Bills / CN" />} />
-          <Route path="transport/contracts" element={<ComingSoonPage moduleName="Monthly Contracts" />} />
+          {/* ── Transport ── */}
+          <Route path="transport/transporters" element={<ComingSoonPage moduleName="Transporter Master" />} />
+          <Route path="transport/vehicles"     element={<ComingSoonPage moduleName="Vehicle Master" />} />
+          <Route path="transport/drivers"      element={<ComingSoonPage moduleName="Driver Master" />} />
+          <Route path="transport/trips"        element={<ComingSoonPage moduleName="Transport Requests & Trips" />} />
+          <Route path="transport/bills"        element={<ComingSoonPage moduleName="Transporter Bills / CN" />} />
+          <Route path="transport/contracts"    element={<ComingSoonPage moduleName="Monthly Contracts" />} />
 
-          {/* ── Promotional (Phase 5) ── */}
-          <Route path="promo/items"        element={<ComingSoonPage moduleName="Promo Item Master" />} />
-          <Route path="promo/receipt"      element={<ComingSoonPage moduleName="Promo Stock Receipt" />} />
-          <Route path="promo/distribution" element={<ComingSoonPage moduleName="Promo Distribution" />} />
-          <Route path="promo/ledger"       element={<ComingSoonPage moduleName="Promo Stock Ledger" />} />
+          {/* ── Promotional ── */}
+          <Route path="promotional/items"         element={<ComingSoonPage moduleName="Promo Item Master" />} />
+          <Route path="promotional/receipts"      element={<ComingSoonPage moduleName="Promo Stock Receipt" />} />
+          <Route path="promotional/distributions" element={<ComingSoonPage moduleName="Promo Distribution" />} />
 
-          {/* ── Reports (Phase 6) ── */}
-          <Route path="reports" element={<ComingSoonPage moduleName="Reports" />} />
-
-          {/* ── Admin (Phase 6) ── */}
-          <Route path="admin/users"         element={<ComingSoonPage moduleName="User Management" />} />
-          <Route path="admin/roles"         element={<ComingSoonPage moduleName="Role Builder" />} />
-          <Route path="admin/notifications" element={<ComingSoonPage moduleName="Notifications" />} />
-          <Route path="admin/audit-log"     element={<ComingSoonPage moduleName="Audit Log" />} />
-          <Route path="admin/settings"      element={<ComingSoonPage moduleName="Settings" />} />
+          {/* ── Reports & Admin ── */}
+          <Route path="reports"               element={<ComingSoonPage moduleName="Reports" />} />
+          <Route path="admin/users"           element={<ComingSoonPage moduleName="User Management" />} />
+          <Route path="admin/roles"           element={<ComingSoonPage moduleName="Role Builder" />} />
+          <Route path="admin/notifications"   element={<ComingSoonPage moduleName="Notifications" />} />
+          <Route path="admin/audit-log"       element={<ComingSoonPage moduleName="Audit Log" />} />
+          <Route path="admin/settings"        element={<ComingSoonPage moduleName="Settings" />} />
 
           <Route path="*" element={<NotFoundPage />} />
         </Route>
