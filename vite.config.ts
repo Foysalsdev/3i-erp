@@ -3,26 +3,36 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
+const SUPABASE_URL      = "https://ludfmwfifrnzgvffteyw.supabase.co"
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1ZGZtd2ZpZnJuemd2ZmZ0ZXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MDE5MDQsImV4cCI6MjA5NjQ3NzkwNH0.BLbQocfNcBMPytLuIwtvrJbA_pXW6SDCfp6WjuJ0grA"
+
 export default defineConfig({
-  // Inject env vars at build time (fallback if Vercel env vars not set)
   define: {
-    'import.meta.env.VITE_SUPABASE_URL':      JSON.stringify(
-      process.env.VITE_SUPABASE_URL || 'https://ludfmwfifrnzgvffteyw.supabase.co'
-    ),
-    'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(
-      process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1ZGZtd2ZpZnJuemd2ZmZ0ZXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MDE5MDQsImV4cCI6MjA5NjQ3NzkwNH0.BLbQocfNcBMPytLuIwtvrJbA_pXW6SDCfp6WjuJ0grA'
-    ),
-    'import.meta.env.VITE_APP_NAME':    JSON.stringify(
-      process.env.VITE_APP_NAME || '3i Logistics ERP'
-    ),
-    'import.meta.env.VITE_APP_VERSION': JSON.stringify(
-      process.env.VITE_APP_VERSION || '3.0.0'
-    ),
+    __SUPABASE_URL__:      JSON.stringify(SUPABASE_URL),
+    __SUPABASE_ANON_KEY__: JSON.stringify(SUPABASE_ANON_KEY),
   },
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Force SW to claim clients immediately on update
+      injectRegister: 'auto',
+      workbox: {
+        // Clear old caches on update
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+        runtimeCaching: [
+          {
+            urlPattern: /\/rest\/v1\/(items|customers|suppliers|clients|warehouses)/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'masters-cache-v2',
+              expiration: { maxAgeSeconds: 86400 },
+            },
+          },
+        ],
+      },
       manifest: {
         name: '3i Logistics ERP',
         short_name: '3i ERP',
@@ -31,38 +41,10 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait-primary',
         icons: [
-          { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml' }
-        ]
+          { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml' },
+        ],
       },
-      workbox: {
-        runtimeCaching: [
-          {
-            urlPattern: /\/rest\/v1\/(items|customers|suppliers|clients|warehouses)/,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'masters-cache',
-              expiration: { maxAgeSeconds: 86400 }
-            }
-          },
-          {
-            urlPattern: /\/rest\/v1\/(grn|sales_orders|delivery_challans)/,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'transactions-cache',
-              expiration: { maxAgeSeconds: 604800 }
-            }
-          },
-          {
-            urlPattern: /\/rest\/v1\/stock_ledger/,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'stock-cache',
-              expiration: { maxAgeSeconds: 3600 }
-            }
-          }
-        ]
-      }
-    })
+    }),
   ],
   resolve: {
     alias: {
