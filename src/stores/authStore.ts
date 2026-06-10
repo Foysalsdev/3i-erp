@@ -2,7 +2,6 @@ import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import type { AppUser, AppRole, ModulePermission, FieldPermission } from '@/types'
 
-// ─── Local row types (avoids "never" from generic DB types) ──
 interface RolePermRow {
   module: string; can_view: boolean; can_create: boolean; can_edit: boolean
   can_delete: boolean; can_approve: boolean; can_post: boolean; can_print: boolean
@@ -68,19 +67,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const roleId = ur?.role_id ?? ''
       const isSuperAdmin = role?.name === 'Super Admin'
 
-      // Accessible clients
+      // Accessible clients — ALWAYS from DB (even Super Admin)
       const { data: clientsRaw } = await supabase
         .from('role_clients')
         .select('client_id')
         .eq('role_id', roleId)
       const clientsData = (clientsRaw ?? []) as ClientRow[]
+      const clientList = clientsData.map(c => c.client_id)
 
-      // Module permissions
-      const { data: permsRaw } = await supabase
-        .from('role_permissions')
-        .select('module, can_view, can_create, can_edit, can_delete, can_approve, can_post, can_print')
-        .eq('role_id', roleId)
-      const permsData = (permsRaw ?? []) as RolePermRow[]
+      // Module permissions — Super Admin gets all hardcoded
+      let permissions: Record<string, ModulePermission> = {}
+      if (isSuperAdmin) {
+        permissions = buildSuperAdminPermissions()
+      } else {
+        const { data: permsRaw } = await supabase
+          .from('role_permissions')
+          .select('module, can_view, can_create, can_edit, can_delete, can_approve, can_post, can_print')
+          .eq('role_id', roleId)
+        const permsData = (permsRaw ?? []) as RolePermRow[]
+        for (const p of permsData) {
+          permissions[p.module] = {
+            can_view: p.can_view, can_create: p.can_create, can_edit: p.can_edit,
+            can_delete: p.can_delete, can_approve: p.can_approve, can_post: p.can_post,
+            can_print: p.can_print,
+          }
+        }
+      }
 
       // Field permissions
       const { data: fpRaw } = await supabase
@@ -88,28 +100,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         .select('module, field_name, can_view, can_edit')
         .eq('role_id', roleId)
       const fpData = (fpRaw ?? []) as FieldPermRow[]
-
-      const fullName =
-        (authUser?.user_metadata?.full_name as string | undefined) ??
-        authUser?.email?.split('@')[0] ??
-        'User'
-
-      // Build permissions map
-      const permissions: Record<string, ModulePermission> = {}
-      for (const p of permsData) {
-        permissions[p.module] = {
-          can_view: p.can_view, can_create: p.can_create, can_edit: p.can_edit,
-          can_delete: p.can_delete, can_approve: p.can_approve, can_post: p.can_post,
-          can_print: p.can_print,
-        }
-      }
-
-      // Build field permissions map
       const fieldPermissions: Record<string, Record<string, FieldPermission>> = {}
       for (const fp of fpData) {
         if (!fieldPermissions[fp.module]) fieldPermissions[fp.module] = {}
         fieldPermissions[fp.module][fp.field_name] = { can_view: fp.can_view, can_edit: fp.can_edit }
       }
+
+      const fullName =
+        (authUser?.user_metadata?.full_name as string | undefined) ??
+        authUser?.email?.split('@')[0] ??
+        'User'
 
       set({
         user: {
@@ -117,8 +117,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           email: authUser?.email ?? '',
           full_name: fullName,
           role,
-          clients: isSuperAdmin ? ['WH', 'RB', 'GD', '3I'] : clientsData.map(c => c.client_id),
-          permissions: isSuperAdmin ? buildSuperAdminPermissions() : permissions,
+          clients: clientList,
+          permissions,
           fieldPermissions,
         },
       })
@@ -146,7 +146,7 @@ function buildSuperAdminPermissions(): Record<string, ModulePermission> {
     'po','grn','prn','so','dc','gate_pass','srn','invoice_cancel',
     'exchange','stock_ledger','stock_transfer','stock_adjustment',
     'damaged_stock','cycle_count','expense','budget','invoice','payment',
-    'ledger','employee','attendance','leave','payroll','labour',
+    'finance_ledger','employee','attendance','leave','payroll','labour_log',
     'task','notifications','audit_log','attachments','reports',
     'settings','users','roles','transport','promotional','masters',
   ]
