@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bell, ChevronDown, LogOut, Menu, Search, Settings, User, WifiOff } from 'lucide-react'
+import { Bell, ChevronDown, LogOut, Menu, Search, Settings, WifiOff } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useAppStore } from '@/stores/appStore'
