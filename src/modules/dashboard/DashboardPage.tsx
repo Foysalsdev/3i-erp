@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
-  Package, ShoppingCart, Truck, DollarSign,
-  TrendingUp, AlertTriangle, Users, BarChart3,
-  ArrowUpRight, ArrowDownRight, Clock, CheckCircle2,
-  Loader2
+  Package, ShoppingCart, Truck,
+  ArrowUpRight, ArrowDownRight,
+  Users, BarChart3, CheckCircle2,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
@@ -95,7 +94,6 @@ export function DashboardPage() {
       subtitle: 'WH · RB · GD · 3I',
       icon: <Users size={18} />,
       borderColor: '#3B82F6',
-      trend: 'neutral',
     },
     {
       title: 'Items / SKU',
@@ -103,7 +101,6 @@ export function DashboardPage() {
       subtitle: `Client: ${activeClient}`,
       icon: <Package size={18} />,
       borderColor: '#10B981',
-      trend: 'neutral',
     },
     {
       title: 'Suppliers',
@@ -111,7 +108,6 @@ export function DashboardPage() {
       subtitle: 'All clients',
       icon: <ShoppingCart size={18} />,
       borderColor: '#F59E0B',
-      trend: 'neutral',
     },
     {
       title: 'Customers',
@@ -119,30 +115,29 @@ export function DashboardPage() {
       subtitle: `Client: ${activeClient}`,
       icon: <Truck size={18} />,
       borderColor: '#8B5CF6',
-      trend: 'neutral',
     },
   ]
 
   const buildPhases = [
-    { phase: 'Phase 1 — Foundation',        status: '✅ Complete',  color: 'text-emerald-600' },
-    { phase: 'Phase 2 — Master Data',       status: '🔄 In Progress', color: 'text-blue-600' },
-    { phase: 'Phase 3 — Warehouse Ops',     status: '⏳ Pending',   color: 'text-amber-600' },
-    { phase: 'Phase 4 — Stock & Finance',   status: '⏳ Pending',   color: 'text-amber-600' },
-    { phase: 'Phase 5 — Transport & Promo', status: '⏳ Pending',   color: 'text-amber-600' },
-    { phase: 'Phase 6 — Reports & PWA',     status: '⏳ Pending',   color: 'text-amber-600' },
+    { phase: 'Phase 1 — Foundation',        status: '✅ Complete',     color: 'text-emerald-600' },
+    { phase: 'Phase 2 — Master Data',       status: '🔄 In Progress',  color: 'text-blue-600'   },
+    { phase: 'Phase 3 — Warehouse Ops',     status: '⏳ Pending',      color: 'text-amber-600'  },
+    { phase: 'Phase 4 — Stock & Finance',   status: '⏳ Pending',      color: 'text-amber-600'  },
+    { phase: 'Phase 5 — Transport & Promo', status: '⏳ Pending',      color: 'text-amber-600'  },
+    { phase: 'Phase 6 — Reports & PWA',     status: '⏳ Pending',      color: 'text-amber-600'  },
   ]
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-[#1E293B]">
             Good morning, {user?.full_name?.split(' ')[0]} 👋
           </h1>
           <p className="text-sm text-[#64748B] mt-0.5">
-            3i Logistics ERP — {new Date().toLocaleDateString('en-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            {new Date().toLocaleDateString('en-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
         <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full text-xs font-medium border border-emerald-200">
@@ -152,17 +147,14 @@ export function DashboardPage() {
       </div>
 
       {/* KPI Grid */}
-      {loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1,2,3,4].map(i => (
-            <div key={i} className="bg-white rounded-lg border border-[#E2E8F0] p-5 h-28 skeleton" />
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {kpis.map(kpi => <KPIWidget key={kpi.title} {...kpi} />)}
-        </div>
-      )}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {loading
+          ? [1,2,3,4].map(i => (
+              <div key={i} className="bg-white rounded-lg border border-[#E2E8F0] p-5 h-28 skeleton" />
+            ))
+          : kpis.map(kpi => <KPIWidget key={kpi.title} {...kpi} />)
+        }
+      </div>
 
       {/* 2-column bottom */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -173,11 +165,9 @@ export function DashboardPage() {
             <BarChart3 size={16} className="text-[#2563EB]" />
             <h2 className="text-sm font-semibold text-[#1E293B]">Build Progress</h2>
           </div>
-          <div className="space-y-1">
-            {buildPhases.map(p => (
-              <StatRow key={p.phase} label={p.phase} value={p.status} color={p.color} />
-            ))}
-          </div>
+          {buildPhases.map(p => (
+            <StatRow key={p.phase} label={p.phase} value={p.status} color={p.color} />
+          ))}
         </div>
 
         {/* System Info */}
@@ -186,25 +176,23 @@ export function DashboardPage() {
             <CheckCircle2 size={16} className="text-[#2563EB]" />
             <h2 className="text-sm font-semibold text-[#1E293B]">System Status</h2>
           </div>
-          <div className="space-y-1">
-            <StatRow label="Active Client"       value={activeClient}                   color="text-[#1E293B]" />
-            <StatRow label="Logged in as"        value={user?.full_name ?? '—'}         color="text-[#1E293B]" />
-            <StatRow label="Role"                value={user?.role?.name ?? '—'}        color="text-blue-600"  />
-            <StatRow label="Supabase"            value="Connected ✅"                   color="text-emerald-600" />
-            <StatRow label="Warehouses"          value={`${stats.totalWarehouses} configured`} color="text-[#1E293B]" />
-            <StatRow label="ERP Version"         value="v3.0.0"                         color="text-[#64748B]" />
-          </div>
+          <StatRow label="Active Client"  value={activeClient}                      color="text-[#1E293B]"    />
+          <StatRow label="Logged in as"   value={user?.full_name ?? '—'}            color="text-[#1E293B]"    />
+          <StatRow label="Role"           value={user?.role?.name ?? '—'}           color="text-blue-600"    />
+          <StatRow label="Supabase"       value="Connected ✅"                       color="text-emerald-600" />
+          <StatRow label="Warehouses"     value={`${stats.totalWarehouses} configured`} color="text-[#1E293B]" />
+          <StatRow label="ERP Version"    value="v3.0.0"                             color="text-[#64748B]"   />
         </div>
       </div>
 
-      {/* Quick Links */}
+      {/* Next Steps banner */}
       <div className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg p-4">
-        <p className="text-sm font-medium text-[#1D4ED8] mb-2">📋 Next Steps</p>
+        <p className="text-sm font-semibold text-[#1D4ED8] mb-2">📋 Next Steps</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-[#1D4ED8]">
-          <span>→ Add Clients (Masters)</span>
+          <span>→ Add Clients</span>
           <span>→ Add Items / SKU</span>
           <span>→ Add Suppliers</span>
-          <span>→ Add Warehouse Zones</span>
+          <span>→ Add Warehouse</span>
         </div>
       </div>
     </div>
