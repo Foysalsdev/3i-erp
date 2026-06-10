@@ -1,33 +1,50 @@
-import React from 'react'
+import { useEffect, useState } from 'react'
 import {
   Package, ShoppingCart, Truck, DollarSign,
-  TrendingUp, AlertTriangle, Clock, CheckCircle
+  TrendingUp, AlertTriangle, Users, BarChart3,
+  ArrowUpRight, ArrowDownRight, Clock, CheckCircle2,
+  Loader2
 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { useAppStore } from '@/stores/appStore'
 
-interface KPICardProps {
+interface KPICard {
   title: string
   value: string | number
-  subtitle?: string
+  subtitle: string
   icon: React.ReactNode
-  color: string
-  bgColor: string
+  borderColor: string
+  trend?: 'up' | 'down' | 'neutral'
 }
 
-function KPICard({ title, value, subtitle, icon, color, bgColor }: KPICardProps) {
+function KPIWidget({ title, value, subtitle, icon, borderColor, trend }: KPICard) {
   return (
-    <div className="bg-white rounded-sap shadow-sap-card p-5 flex items-start gap-4">
-      <div className={`p-3 rounded-sap ${bgColor} flex-shrink-0`}>
-        <div className={color}>{icon}</div>
+    <div className="bg-white rounded-lg shadow-sm border border-[#E2E8F0] p-5 flex items-start gap-4"
+         style={{ borderTop: `4px solid ${borderColor}` }}>
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8] mb-1">
+          {title}
+        </p>
+        <p className="text-2xl font-bold text-[#1E293B] truncate">{value}</p>
+        <div className="flex items-center gap-1 mt-1">
+          {trend === 'up'   && <ArrowUpRight   size={12} className="text-emerald-500 shrink-0" />}
+          {trend === 'down' && <ArrowDownRight  size={12} className="text-red-500 shrink-0" />}
+          <p className="text-[12px] text-[#64748B] truncate">{subtitle}</p>
+        </div>
       </div>
-      <div className="min-w-0">
-        <p className="text-sap-sm text-sap-textSecondary truncate">{title}</p>
-        <p className="text-sap-h1 font-bold text-sap-text mt-0.5">{value}</p>
-        {subtitle && (
-          <p className="text-sap-xs text-sap-textSecondary mt-1">{subtitle}</p>
-        )}
+      <div className="shrink-0 w-10 h-10 rounded-lg bg-[#F1F5F9] flex items-center justify-center text-[#64748B]">
+        {icon}
       </div>
+    </div>
+  )
+}
+
+function StatRow({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="flex items-center justify-between py-2.5 border-b border-[#F1F5F9] last:border-0">
+      <span className="text-sm text-[#475569]">{label}</span>
+      <span className={`text-sm font-semibold ${color}`}>{value}</span>
     </div>
   )
 }
@@ -35,109 +52,159 @@ function KPICard({ title, value, subtitle, icon, color, bgColor }: KPICardProps)
 export function DashboardPage() {
   const { user } = useAuthStore()
   const { activeClient } = useAppStore()
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    totalClients: 0,
+    totalItems: 0,
+    totalSuppliers: 0,
+    totalCustomers: 0,
+    totalWarehouses: 0,
+  })
 
-  const clientLabel: Record<string, string> = {
-    WH: 'Whirlpool Bangladesh',
-    RB: 'Robi Axiata',
-    GD: 'Godrej Bangladesh',
-    '3I': '3i Internal',
-  }
+  useEffect(() => {
+    async function loadStats() {
+      setLoading(true)
+      try {
+        const [clients, items, suppliers, customers, warehouses] = await Promise.all([
+          supabase.from('clients').select('client_code', { count: 'exact', head: true }),
+          supabase.from('items').select('id', { count: 'exact', head: true }).eq('client_id', activeClient),
+          supabase.from('suppliers').select('id', { count: 'exact', head: true }),
+          supabase.from('customers').select('id', { count: 'exact', head: true }).eq('client_id', activeClient),
+          supabase.from('warehouses').select('id', { count: 'exact', head: true }),
+        ])
+        setStats({
+          totalClients:    clients.count    ?? 0,
+          totalItems:      items.count      ?? 0,
+          totalSuppliers:  suppliers.count  ?? 0,
+          totalCustomers:  customers.count  ?? 0,
+          totalWarehouses: warehouses.count ?? 0,
+        })
+      } catch (err) {
+        console.error('Dashboard load error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadStats()
+  }, [activeClient])
+
+  const kpis: KPICard[] = [
+    {
+      title: 'Active Clients',
+      value: loading ? '—' : stats.totalClients,
+      subtitle: 'WH · RB · GD · 3I',
+      icon: <Users size={18} />,
+      borderColor: '#3B82F6',
+      trend: 'neutral',
+    },
+    {
+      title: 'Items / SKU',
+      value: loading ? '—' : stats.totalItems,
+      subtitle: `Client: ${activeClient}`,
+      icon: <Package size={18} />,
+      borderColor: '#10B981',
+      trend: 'neutral',
+    },
+    {
+      title: 'Suppliers',
+      value: loading ? '—' : stats.totalSuppliers,
+      subtitle: 'All clients',
+      icon: <ShoppingCart size={18} />,
+      borderColor: '#F59E0B',
+      trend: 'neutral',
+    },
+    {
+      title: 'Customers',
+      value: loading ? '—' : stats.totalCustomers,
+      subtitle: `Client: ${activeClient}`,
+      icon: <Truck size={18} />,
+      borderColor: '#8B5CF6',
+      trend: 'neutral',
+    },
+  ]
+
+  const buildPhases = [
+    { phase: 'Phase 1 — Foundation',        status: '✅ Complete',  color: 'text-emerald-600' },
+    { phase: 'Phase 2 — Master Data',       status: '🔄 In Progress', color: 'text-blue-600' },
+    { phase: 'Phase 3 — Warehouse Ops',     status: '⏳ Pending',   color: 'text-amber-600' },
+    { phase: 'Phase 4 — Stock & Finance',   status: '⏳ Pending',   color: 'text-amber-600' },
+    { phase: 'Phase 5 — Transport & Promo', status: '⏳ Pending',   color: 'text-amber-600' },
+    { phase: 'Phase 6 — Reports & PWA',     status: '⏳ Pending',   color: 'text-amber-600' },
+  ]
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-sap-shell to-sap-sidebar rounded-sap-lg p-6 text-white">
-        <h1 className="text-sap-h1 font-bold">
-          Welcome back, {user?.full_name?.split(' ')[0] ?? 'User'} 👋
-        </h1>
-        <p className="text-white/70 mt-1 text-sap-md">
-          Viewing: <strong className="text-white">{clientLabel[activeClient] ?? activeClient}</strong>
-          {' · '}
-          <span>{new Date().toLocaleDateString('en-BD', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
-        </p>
-      </div>
+    <div className="p-6 space-y-6 max-w-7xl mx-auto">
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard
-          title="Today's GRN"
-          value="0"
-          subtitle="Goods received today"
-          icon={<Package size={22} />}
-          color="text-sap-blue"
-          bgColor="bg-sap-blueLight"
-        />
-        <KPICard
-          title="Pending PO"
-          value="0"
-          subtitle="Awaiting delivery"
-          icon={<ShoppingCart size={22} />}
-          color="text-sap-warning"
-          bgColor="bg-sap-warningLight"
-        />
-        <KPICard
-          title="Open SO"
-          value="0"
-          subtitle="Sales orders active"
-          icon={<Truck size={22} />}
-          color="text-sap-success"
-          bgColor="bg-sap-successLight"
-        />
-        <KPICard
-          title="Pending Invoice"
-          value="৳ 0"
-          subtitle="Outstanding amount"
-          icon={<DollarSign size={22} />}
-          color="text-sap-error"
-          bgColor="bg-sap-errorLight"
-        />
-      </div>
-
-      {/* Alerts + Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Alerts */}
-        <div className="bg-white rounded-sap shadow-sap-card">
-          <div className="px-5 py-4 border-b border-sap-border flex items-center gap-2">
-            <AlertTriangle size={16} className="text-sap-warning" />
-            <h2 className="text-sap-md font-semibold text-sap-text">Alerts</h2>
-          </div>
-          <div className="px-5 py-8 text-center text-sap-textSecondary text-sap-sm">
-            <CheckCircle size={32} className="mx-auto mb-2 text-sap-success opacity-50" />
-            <p>No alerts at this time</p>
-          </div>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-[#1E293B]">
+            Good morning, {user?.full_name?.split(' ')[0]} 👋
+          </h1>
+          <p className="text-sm text-[#64748B] mt-0.5">
+            3i Logistics ERP — {new Date().toLocaleDateString('en-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
         </div>
-
-        {/* Recent Activity */}
-        <div className="bg-white rounded-sap shadow-sap-card">
-          <div className="px-5 py-4 border-b border-sap-border flex items-center gap-2">
-            <Clock size={16} className="text-sap-blue" />
-            <h2 className="text-sap-md font-semibold text-sap-text">Recent Activity</h2>
-          </div>
-          <div className="px-5 py-8 text-center text-sap-textSecondary text-sap-sm">
-            <TrendingUp size={32} className="mx-auto mb-2 text-sap-blue opacity-50" />
-            <p>No recent transactions</p>
-            <p className="text-sap-xs mt-1">Activity will appear here once modules are active</p>
-          </div>
+        <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full text-xs font-medium border border-emerald-200">
+          <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+          System Online
         </div>
       </div>
 
-      {/* Phase Status */}
-      <div className="bg-white rounded-sap shadow-sap-card p-5">
-        <h2 className="text-sap-md font-semibold text-sap-text mb-4">🏗️ Build Status</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {[
-            { phase: 'Phase 1: Foundation', status: '✅ Complete', color: 'text-sap-success' },
-            { phase: 'Phase 2: Masters', status: '⏳ Next', color: 'text-sap-warning' },
-            { phase: 'Phase 3: Warehouse Ops', status: '🔒 Pending', color: 'text-sap-textSecondary' },
-            { phase: 'Phase 4: Stock Mgmt', status: '🔒 Pending', color: 'text-sap-textSecondary' },
-            { phase: 'Phase 5: Finance & HR', status: '🔒 Pending', color: 'text-sap-textSecondary' },
-            { phase: 'Phase 6: System & PDF', status: '🔒 Pending', color: 'text-sap-textSecondary' },
-          ].map(item => (
-            <div key={item.phase} className="p-3 bg-sap-bg rounded-sap">
-              <p className="text-sap-sm font-medium text-sap-text">{item.phase}</p>
-              <p className={`text-sap-xs mt-1 ${item.color}`}>{item.status}</p>
-            </div>
+      {/* KPI Grid */}
+      {loading ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1,2,3,4].map(i => (
+            <div key={i} className="bg-white rounded-lg border border-[#E2E8F0] p-5 h-28 skeleton" />
           ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {kpis.map(kpi => <KPIWidget key={kpi.title} {...kpi} />)}
+        </div>
+      )}
+
+      {/* 2-column bottom */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Build Progress */}
+        <div className="bg-white rounded-lg border border-[#E2E8F0] shadow-sm p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 size={16} className="text-[#2563EB]" />
+            <h2 className="text-sm font-semibold text-[#1E293B]">Build Progress</h2>
+          </div>
+          <div className="space-y-1">
+            {buildPhases.map(p => (
+              <StatRow key={p.phase} label={p.phase} value={p.status} color={p.color} />
+            ))}
+          </div>
+        </div>
+
+        {/* System Info */}
+        <div className="bg-white rounded-lg border border-[#E2E8F0] shadow-sm p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <CheckCircle2 size={16} className="text-[#2563EB]" />
+            <h2 className="text-sm font-semibold text-[#1E293B]">System Status</h2>
+          </div>
+          <div className="space-y-1">
+            <StatRow label="Active Client"       value={activeClient}                   color="text-[#1E293B]" />
+            <StatRow label="Logged in as"        value={user?.full_name ?? '—'}         color="text-[#1E293B]" />
+            <StatRow label="Role"                value={user?.role?.name ?? '—'}        color="text-blue-600"  />
+            <StatRow label="Supabase"            value="Connected ✅"                   color="text-emerald-600" />
+            <StatRow label="Warehouses"          value={`${stats.totalWarehouses} configured`} color="text-[#1E293B]" />
+            <StatRow label="ERP Version"         value="v3.0.0"                         color="text-[#64748B]" />
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Links */}
+      <div className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg p-4">
+        <p className="text-sm font-medium text-[#1D4ED8] mb-2">📋 Next Steps</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-[#1D4ED8]">
+          <span>→ Add Clients (Masters)</span>
+          <span>→ Add Items / SKU</span>
+          <span>→ Add Suppliers</span>
+          <span>→ Add Warehouse Zones</span>
         </div>
       </div>
     </div>
