@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bell, ChevronDown, LogOut, Menu, Search, Settings, User, Wifi, WifiOff } from 'lucide-react'
+import { Bell, ChevronDown, LogOut, Menu, Search, Settings, User, WifiOff } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useAppStore } from '@/stores/appStore'
@@ -7,7 +7,6 @@ import { useAppStore } from '@/stores/appStore'
 // ─── Offline Banner ───────────────────────────────────────────────────────────
 export function OfflineBanner() {
   const [online, setOnline] = useState(navigator.onLine)
-
   useState(() => {
     const on  = () => setOnline(true)
     const off = () => setOnline(false)
@@ -15,10 +14,9 @@ export function OfflineBanner() {
     window.addEventListener('offline', off)
     return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off) }
   })
-
   if (online) return null
   return (
-    <div className="bg-amber-500 text-white text-center py-1.5 text-xs font-medium flex items-center justify-center gap-2">
+    <div className="bg-amber-500 text-white text-center py-1.5 text-xs font-medium flex items-center justify-center gap-2 shrink-0">
       <WifiOff size={13} />
       No internet connection — view only mode
     </div>
@@ -35,13 +33,13 @@ export function SAPShell() {
     toggleSidebar, setMobileDrawerOpen,
   } = useAppStore()
 
-  const [notifOpen,  setNotifOpen]  = useState(false)
-  const [userOpen,   setUserOpen]   = useState(false)
-  const [searchVal,  setSearchVal]  = useState('')
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [userOpen,  setUserOpen]  = useState(false)
 
   const firstName = user?.full_name?.split(' ')[0] ?? 'User'
-  const initials  = user?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? 'U'
-  const clients   = user?.clients ?? []
+  const initials  = user?.full_name
+    ?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? 'U'
+  const clients = user?.clients ?? []
 
   async function handleLogout() {
     await logout()
@@ -53,29 +51,25 @@ export function SAPShell() {
       className="flex items-center justify-between px-3 shrink-0 z-40"
       style={{ background: '#1B2A3B', height: '48px', boxShadow: '0 1px 4px 0 rgb(0 0 0 / .22)' }}
     >
-      {/* ── Left: Hamburger + Logo ── */}
+      {/* ── Left ── */}
       <div className="flex items-center gap-2">
-        {/* Mobile hamburger */}
         <button
           onClick={() => setMobileDrawerOpen(true)}
           className="md:hidden p-1.5 rounded hover:bg-white/10 text-white/80 hover:text-white transition-colors"
         >
           <Menu size={18} />
         </button>
-        {/* Desktop collapse */}
         <button
           onClick={toggleSidebar}
           className="hidden md:flex p-1.5 rounded hover:bg-white/10 text-white/80 hover:text-white transition-colors"
         >
           <Menu size={18} />
         </button>
-
-        {/* Logo mark */}
         <button
           onClick={() => navigate('/dashboard')}
           className="flex items-center gap-2 hover:opacity-90 transition-opacity"
         >
-          <div className="w-7 h-7 rounded-md bg-[#2563EB] flex items-center justify-center">
+          <div className="w-7 h-7 rounded-md bg-[#2563EB] flex items-center justify-center shrink-0">
             <span className="text-white text-xs font-bold leading-none">3i</span>
           </div>
           <span className="text-white font-semibold text-sm hidden sm:inline tracking-wide">
@@ -88,32 +82,26 @@ export function SAPShell() {
       <div className="hidden md:flex items-center bg-white/10 hover:bg-white/15 focus-within:bg-white/20 rounded-md px-3 gap-2 h-8 w-72 transition-colors">
         <Search size={13} className="text-white/50 shrink-0" />
         <input
-          value={searchVal}
-          onChange={e => setSearchVal(e.target.value)}
           placeholder="Search docs, SAP codes..."
           className="bg-transparent text-white text-xs placeholder-white/40 outline-none w-full"
         />
       </div>
 
-      {/* ── Right: Client + Bell + User ── */}
+      {/* ── Right ── */}
       <div className="flex items-center gap-0.5">
 
-        {/* Client switcher */}
-        {clients.length > 1 && (
+        {/* Client switcher — only show if user has clients */}
+        {clients.length > 0 && (
           <select
             value={activeClient}
             onChange={e => setActiveClient(e.target.value)}
             className="bg-white/10 border border-white/20 text-white text-xs rounded px-2 py-1 mr-2 cursor-pointer hover:bg-white/15 outline-none"
           >
-            {clients.map(c => <option key={c} value={c} className="text-gray-900 bg-white">{c}</option>)}
+            {clients.map(c => (
+              <option key={c} value={c} className="text-gray-900 bg-white">{c}</option>
+            ))}
           </select>
         )}
-
-        {/* Online dot */}
-        <div className="hidden md:flex items-center gap-1 px-2 text-xs text-white/50 mr-1">
-          <Wifi size={11} className="text-emerald-400" />
-          <span className="text-emerald-400">Online</span>
-        </div>
 
         {/* Notification bell */}
         <div className="relative">
@@ -128,7 +116,6 @@ export function SAPShell() {
               </span>
             )}
           </button>
-
           {notifOpen && (
             <div className="absolute right-0 top-11 w-80 bg-white rounded-lg border border-[#E2E8F0] shadow-xl z-50"
                  style={{ animation: 'fadeIn .15s ease-out' }}>
@@ -169,7 +156,6 @@ export function SAPShell() {
             <span className="text-white/90 text-xs hidden md:block max-w-24 truncate">{firstName}</span>
             <ChevronDown size={12} className="text-white/60 hidden md:block" />
           </button>
-
           {userOpen && (
             <div className="absolute right-0 top-11 w-48 bg-white rounded-lg border border-[#E2E8F0] shadow-xl z-50"
                  style={{ animation: 'fadeIn .15s ease-out' }}>
@@ -177,12 +163,6 @@ export function SAPShell() {
                 <p className="text-sm font-semibold text-[#1E293B] truncate">{user?.full_name}</p>
                 <p className="text-xs text-[#94A3B8] truncate">{user?.role?.name ?? 'Admin'}</p>
               </div>
-              <button
-                onClick={() => { navigate('/admin/profile'); setUserOpen(false) }}
-                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#F8FAFC] transition-colors"
-              >
-                <User size={14} className="text-[#94A3B8]" /> Profile
-              </button>
               <button
                 onClick={() => { navigate('/admin/settings'); setUserOpen(false) }}
                 className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#374151] hover:bg-[#F8FAFC] transition-colors"
@@ -200,7 +180,6 @@ export function SAPShell() {
         </div>
       </div>
 
-      {/* Inline keyframes */}
       <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(4px) } to { opacity:1; transform:translateY(0) } }`}</style>
     </header>
   )
