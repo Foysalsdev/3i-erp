@@ -20,7 +20,7 @@ import { SAPPagination } from '@/components/ui/SAPPagination'
 import type { TableColumn } from '@/types'
 
 interface Client {
-  id: string; client_code: string; client_name: string; client_type: string | null
+  client_code: string; client_name: string; client_type: string | null
   address: string | null; contact_person: string | null; contact_phone: string | null
   contact_email: string | null; sap_enabled: boolean; sap_company_code: string | null
   warehouse_code: string | null; status: string; remarks: string | null
@@ -82,8 +82,9 @@ export function ClientsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
+      // clients table uses client_code as PK (no id column)
       let q = db('clients')
-        .select('id,client_code,client_name,client_type,address,contact_person,contact_phone,contact_email,sap_enabled,sap_company_code,warehouse_code,status,remarks', { count:'exact' })
+        .select('client_code,client_name,client_type,address,contact_person,contact_phone,contact_email,sap_enabled,sap_company_code,warehouse_code,status,remarks', { count:'exact' })
         .order('client_code')
         .range((page-1)*pageSize, page*pageSize-1)
       if (search) q = q.or(`client_name.ilike.%${search}%,client_code.ilike.%${search}%`)
@@ -91,18 +92,20 @@ export function ClientsPage() {
       if (error) throw error
       setClients(data ?? [])
       setTotal(count ?? 0)
-    } catch(err) { handleSupabaseError(err,'Fetch Clients') }
-    finally { setLoading(false) }
+    } catch(err) {
+      handleSupabaseError(err,'Fetch Clients')
+    } finally {
+      setLoading(false)
+    }
   }, [page, pageSize, search])
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  // Reload when tab becomes visible again
   useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') fetchData()
-    }
-    document.addEventListener('visibilitychange', handleVisibility)
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
+    const handle = () => { if (document.visibilityState === 'visible') fetchData() }
+    document.addEventListener('visibilitychange', handle)
+    return () => document.removeEventListener('visibilitychange', handle)
   }, [fetchData])
 
   function openNew() {
@@ -112,10 +115,12 @@ export function ClientsPage() {
   }
   function openEdit(c: Client) {
     setEditItem(c)
-    reset({ client_code:c.client_code, client_name:c.client_name, client_type:c.client_type??'3PL Client',
+    reset({
+      client_code:c.client_code, client_name:c.client_name, client_type:c.client_type??'3PL Client',
       address:c.address??'', contact_person:c.contact_person??'', contact_phone:c.contact_phone??'',
       contact_email:c.contact_email??'', sap_enabled:c.sap_enabled, sap_company_code:c.sap_company_code??'',
-      warehouse_code:c.warehouse_code??'', status:c.status, remarks:c.remarks??'' })
+      warehouse_code:c.warehouse_code??'', status:c.status, remarks:c.remarks??''
+    })
     setModalOpen(true)
   }
 
@@ -137,99 +142,151 @@ export function ClientsPage() {
         remarks:          data.remarks||null,
       }
       if (editItem) {
-        const { error } = await db('clients').update(payload).eq('id', editItem.id)
+        const { error } = await db('clients').update(payload).eq('client_code', editItem.client_code)
         if (error) throw error
-        await auditLog('UPDATE','clients',editItem.id,editItem.client_code)
+        await auditLog('UPDATE','clients', editItem.client_code, editItem.client_code)
         showToast(`Client ${data.client_code} updated.`,'success')
       } else {
-        const { data:created, error } = await db('clients').insert(payload).select('id').single()
+        const { error } = await db('clients').insert(payload)
         if (error) throw error
-        await auditLog('CREATE','clients', created.id, data.client_code)
+        await auditLog('CREATE','clients', data.client_code, data.client_code)
         showToast(`Client ${data.client_code} created.`,'success')
       }
-      setModalOpen(false); fetchData()
-    } catch(err) { handleSupabaseError(err,'Save Client') }
-    finally { setSaving(false) }
+      setModalOpen(false)
+      fetchData()
+    } catch(err) {
+      handleSupabaseError(err,'Save Client')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleDelete() {
     if (!deleteTarget) return
     setDeleting(true)
     try {
-      const { error } = await db('clients').delete().eq('id', deleteTarget.id)
+      const { error } = await db('clients').delete().eq('client_code', deleteTarget.client_code)
       if (error) throw error
-      await auditLog('DELETE','clients',deleteTarget.id,deleteTarget.client_code)
+      await auditLog('DELETE','clients', deleteTarget.client_code, deleteTarget.client_code)
       showToast('Client deleted.','success')
-      setDeleteTarget(null); fetchData()
-    } catch(err) { handleSupabaseError(err,'Delete Client') }
-    finally { setDeleting(false) }
+      setDeleteTarget(null)
+      fetchData()
+    } catch(err) {
+      handleSupabaseError(err,'Delete Client')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const actionCol: TableColumn<Client> = {
     key:'actions', label:'Actions', sticky:true,
     render:(_,row) => (
       <div className="flex items-center gap-1">
-        <button onClick={()=>setViewItem(row)} className="p-1.5 rounded-sap-sm text-sap-textSecondary hover:text-sap-blue hover:bg-sap-blueLight" title="View"><Eye size={15}/></button>
-        {canEdit   && <button onClick={()=>openEdit(row)} className="p-1.5 rounded-sap-sm text-sap-textSecondary hover:text-sap-blue hover:bg-sap-blueLight" title="Edit"><Edit size={15}/></button>}
-        {canDelete && <button onClick={()=>setDeleteTarget(row)} className="p-1.5 rounded-sap-sm text-sap-textSecondary hover:text-sap-error hover:bg-sap-errorLight" title="Delete"><Trash2 size={15}/></button>}
+        <button onClick={()=>setViewItem(row)}
+          className="p-1.5 rounded text-[#64748B] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-colors"
+          title="View"><Eye size={15}/></button>
+        {canEdit && <button onClick={()=>openEdit(row)}
+          className="p-1.5 rounded text-[#64748B] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-colors"
+          title="Edit"><Edit size={15}/></button>}
+        {canDelete && <button onClick={()=>setDeleteTarget(row)}
+          className="p-1.5 rounded text-[#64748B] hover:text-red-600 hover:bg-red-50 transition-colors"
+          title="Delete"><Trash2 size={15}/></button>}
       </div>
     ),
   }
 
   return (
     <div className="p-6 space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-sap-blueLight rounded-sap"><Building2 size={20} className="text-sap-blue"/></div>
+          <div className="p-2 bg-[#EFF6FF] rounded-lg">
+            <Building2 size={20} className="text-[#2563EB]"/>
+          </div>
           <div>
-            <h1 className="text-sap-xl font-bold text-sap-text">Client Master</h1>
-            <p className="text-sap-sm text-sap-textSecondary">{total} client{total!==1?'s':''}</p>
+            <h1 className="text-xl font-bold text-[#1E293B]">Client Master</h1>
+            <p className="text-sm text-[#64748B]">{total} client{total!==1?'s':''}</p>
           </div>
         </div>
-        {canCreate && <SAPButton variant="emphasized" icon={<Plus size={16}/>} onClick={openNew}>New Client</SAPButton>}
+        {canCreate && (
+          <SAPButton variant="emphasized" icon={<Plus size={16}/>} onClick={openNew}>
+            New Client
+          </SAPButton>
+        )}
       </div>
 
-      <input type="text" placeholder="Search by name or code..." value={search}
+      {/* Search */}
+      <input
+        type="text" placeholder="Search by name or code..." value={search}
         onChange={e=>{setSearch(e.target.value);setPage(1)}}
-        className="w-full max-w-sm rounded-sap-sm border border-sap-border px-3 py-2 text-sap-md focus:outline-none focus:border-sap-blue focus:shadow-sap-focus"
+        className="w-full max-w-sm rounded-md border border-[#E2E8F0] px-3 py-2 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
       />
 
+      {/* Table */}
       <div>
-        <SAPTable columns={[...columns,actionCol]} data={clients} loading={loading} rowKey="id"
+        <SAPTable
+          columns={[...columns, actionCol]}
+          data={clients}
+          loading={loading}
+          rowKey="client_code"
           emptyMessage="No clients found"
-          emptyAction={canCreate ? <SAPButton variant="emphasized" size="sm" icon={<Plus size={14}/>} onClick={openNew}>Add First Client</SAPButton> : undefined}
+          emptyAction={canCreate
+            ? <SAPButton variant="emphasized" size="sm" icon={<Plus size={14}/>} onClick={openNew}>Add First Client</SAPButton>
+            : undefined
+          }
         />
         <SAPPagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize}/>
       </div>
 
-      <SAPModal open={modalOpen} onClose={()=>setModalOpen(false)}
-        title={editItem?`Edit Client — ${editItem.client_code}`:'New Client'} size="lg"
+      {/* Create/Edit Modal */}
+      <SAPModal
+        open={modalOpen} onClose={()=>setModalOpen(false)}
+        title={editItem ? `Edit Client — ${editItem.client_code}` : 'New Client'} size="lg"
         footer={<>
           <SAPButton variant="ghost" onClick={()=>setModalOpen(false)} disabled={saving}>Cancel</SAPButton>
-          <SAPButton variant="emphasized" onClick={handleSubmit(onSubmit)} loading={saving}>{editItem?'Save Changes':'Create Client'}</SAPButton>
+          <SAPButton variant="emphasized" onClick={handleSubmit(onSubmit)} loading={saving}>
+            {editItem ? 'Save Changes' : 'Create Client'}
+          </SAPButton>
         </>}
       >
         <form className="space-y-6" onSubmit={e=>e.preventDefault()}>
           <SAPFormSection title="Basic Information" cols={2}>
-            <SAPFormRow><SAPInput label="Client Code" required placeholder="WH/RB/GD/3I" disabled={!!editItem} error={errors.client_code?.message} {...register('client_code')}/></SAPFormRow>
-            <SAPFormRow><SAPInput label="Client Name" required error={errors.client_name?.message} {...register('client_name')}/></SAPFormRow>
-            <SAPFormRow><SAPSelect label="Client Type" options={TYPE_OPTS} value={watch('client_type')} onChange={v=>setValue('client_type',v)}/></SAPFormRow>
-            <SAPFormRow><SAPSelect label="Status" options={STATUS_OPTS} value={watch('status')} onChange={v=>setValue('status',v)}/></SAPFormRow>
+            <SAPFormRow>
+              <SAPInput label="Client Code" required placeholder="WH / RB / GD / 3I"
+                disabled={!!editItem} error={errors.client_code?.message} {...register('client_code')}/>
+            </SAPFormRow>
+            <SAPFormRow>
+              <SAPInput label="Client Name" required error={errors.client_name?.message} {...register('client_name')}/>
+            </SAPFormRow>
+            <SAPFormRow>
+              <SAPSelect label="Client Type" options={TYPE_OPTS} value={watch('client_type')} onChange={v=>setValue('client_type',v)}/>
+            </SAPFormRow>
+            <SAPFormRow>
+              <SAPSelect label="Status" options={STATUS_OPTS} value={watch('status')} onChange={v=>setValue('status',v)}/>
+            </SAPFormRow>
           </SAPFormSection>
+
           <SAPFormSection title="Contact" cols={2}>
             <SAPFormRow><SAPInput label="Contact Person" {...register('contact_person')}/></SAPFormRow>
             <SAPFormRow><SAPInput label="Phone" {...register('contact_phone')}/></SAPFormRow>
-            <SAPFormRow><SAPInput label="Email" type="email" error={errors.contact_email?.message} {...register('contact_email')}/></SAPFormRow>
-            <SAPFormRow span={2}><SAPTextarea label="Address" rows={2} {...register('address')}/></SAPFormRow>
+            <SAPFormRow>
+              <SAPInput label="Email" type="email" error={errors.contact_email?.message} {...register('contact_email')}/>
+            </SAPFormRow>
+            <SAPFormRow span={2}>
+              <SAPTextarea label="Address" rows={2} {...register('address')}/>
+            </SAPFormRow>
           </SAPFormSection>
+
           <SAPFormSection title="SAP Integration" cols={2}>
             <SAPFormRow span={2}>
               <label className="flex items-center gap-3 cursor-pointer select-none">
-                <div onClick={()=>setValue('sap_enabled',!sapEnabled)}
-                  className={`w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${sapEnabled?'bg-sap-blue':'bg-sap-border'}`}>
+                <div
+                  onClick={()=>setValue('sap_enabled',!sapEnabled)}
+                  className={`w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${sapEnabled?'bg-[#2563EB]':'bg-[#E2E8F0]'}`}
+                >
                   <div className={`w-5 h-5 bg-white rounded-full shadow mt-0.5 transition-transform ${sapEnabled?'translate-x-5':'translate-x-0.5'}`}/>
                 </div>
-                <span className="text-sap-md">SAP Integration Enabled</span>
+                <span className="text-sm text-[#1E293B]">SAP Integration Enabled</span>
               </label>
             </SAPFormRow>
             {sapEnabled && <>
@@ -237,33 +294,54 @@ export function ClientsPage() {
               <SAPFormRow><SAPInput label="Warehouse Code" placeholder="e.g. RB02" {...register('warehouse_code')}/></SAPFormRow>
             </>}
           </SAPFormSection>
-          <SAPFormSection title="" cols={1}><SAPTextarea label="Remarks" rows={2} {...register('remarks')}/></SAPFormSection>
+
+          <SAPFormSection title="" cols={1}>
+            <SAPTextarea label="Remarks" rows={2} {...register('remarks')}/>
+          </SAPFormSection>
         </form>
       </SAPModal>
 
-      <SAPModal open={!!viewItem} onClose={()=>setViewItem(null)} title={`Client — ${viewItem?.client_code??''}`} size="md"
+      {/* View Modal */}
+      <SAPModal
+        open={!!viewItem} onClose={()=>setViewItem(null)}
+        title={`Client — ${viewItem?.client_code??''}`} size="md"
         footer={<>
-          {canEdit && viewItem && <SAPButton variant="regular" onClick={()=>{setViewItem(null);openEdit(viewItem)}}>Edit</SAPButton>}
+          {canEdit && viewItem && (
+            <SAPButton variant="regular" onClick={()=>{setViewItem(null);openEdit(viewItem)}}>Edit</SAPButton>
+          )}
           <SAPButton variant="ghost" onClick={()=>setViewItem(null)}>Close</SAPButton>
         </>}
       >
         {viewItem && (
           <div className="grid grid-cols-2 gap-4">
-            {([['Code',viewItem.client_code],['Name',viewItem.client_name],['Type',viewItem.client_type],
-              ['Status',viewItem.status],['Contact',viewItem.contact_person],['Phone',viewItem.contact_phone],
-              ['Email',viewItem.contact_email],['SAP',viewItem.sap_enabled?'Enabled':'Disabled'],
+            {([
+              ['Code',viewItem.client_code],['Name',viewItem.client_name],
+              ['Type',viewItem.client_type],['Status',viewItem.status],
+              ['Contact',viewItem.contact_person],['Phone',viewItem.contact_phone],
+              ['Email',viewItem.contact_email],
+              ['SAP',viewItem.sap_enabled?'Enabled':'Disabled'],
               ['Company Code',viewItem.sap_company_code],['Warehouse',viewItem.warehouse_code],
-            ] as [string,string|null][]).filter(([,v])=>v).map(([l,v])=>(
-              <div key={l}><p className="text-sap-xs text-sap-textSecondary">{l}</p><p className="text-sap-md font-medium">{v}</p></div>
-            ))}
+              ['Remarks',viewItem.remarks],
+            ] as [string,string|null|boolean][])
+              .filter(([,v]) => v !== null && v !== undefined && v !== '')
+              .map(([l,v]) => (
+                <div key={String(l)}>
+                  <p className="text-xs text-[#94A3B8] mb-0.5">{String(l)}</p>
+                  <p className="text-sm font-medium text-[#1E293B]">{String(v)}</p>
+                </div>
+              ))
+            }
           </div>
         )}
       </SAPModal>
 
-      <ConfirmDialog open={!!deleteTarget} onClose={()=>setDeleteTarget(null)} onConfirm={handleDelete}
-        title="Delete Client" message={`Delete "${deleteTarget?.client_name}"? Cannot be undone.`}
-        confirmLabel="Delete" loading={deleting}/>
+      {/* Delete Confirm */}
+      <ConfirmDialog
+        open={!!deleteTarget} onClose={()=>setDeleteTarget(null)} onConfirm={handleDelete}
+        title="Delete Client"
+        message={`Delete "${deleteTarget?.client_name}"? This cannot be undone.`}
+        confirmLabel="Delete" loading={deleting}
+      />
     </div>
   )
 }
-
