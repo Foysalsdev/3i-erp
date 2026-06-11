@@ -4,6 +4,7 @@ import {
   ArrowUpRight, ArrowDownRight,
   Users, BarChart3, CheckCircle2,
 } from 'lucide-react'
+import { useRefetchOnFocus } from '@/hooks/useRefetchOnFocus'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { useAppStore } from '@/stores/appStore'
@@ -59,6 +60,8 @@ export function DashboardPage() {
     totalCustomers: 0,
     totalWarehouses: 0,
   })
+
+  useRefetchOnFocus(() => loadStats())
 
   useEffect(() => {
     async function loadStats() {
