@@ -8,9 +8,10 @@ import { DashboardPage } from './modules/dashboard/DashboardPage'
 import { ComingSoonPage, NotFoundPage } from './modules/admin/NotFoundPage'
 import { useRealtimeSubscriptions } from './hooks/useRealtimeSubscriptions'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { supabase } from './lib/supabase'
 import { Loader2 } from 'lucide-react'
 
-// ─── Lazy load master modules ─────────────────────────────
+// ─── Lazy load master modules ──────────────────────────────────
 const ClientsPage    = lazy(() => import('./modules/masters/clients/ClientsPage').then(m => ({ default: m.ClientsPage })))
 const ItemsPage      = lazy(() => import('./modules/masters/items/ItemsPage').then(m => ({ default: m.ItemsPage })))
 const SuppliersPage  = lazy(() => import('./modules/masters/suppliers/SuppliersPage').then(m => ({ default: m.SuppliersPage })))
@@ -26,7 +27,7 @@ function AppInner() {
 function PageLoader() {
   return (
     <div className="flex items-center justify-center h-48">
-      <Loader2 size={24} className="text-sap-blue animate-spin" />
+      <Loader2 size={24} className="text-[#2563EB] animate-spin" />
     </div>
   )
 }
@@ -36,13 +37,13 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
   if (!isInitialized || isLoading) {
     return (
-      <div className="min-h-screen bg-sap-bg flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F1F5F9' }}>
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 bg-sap-blue rounded-sap flex items-center justify-center">
+          <div className="w-12 h-12 bg-[#2563EB] rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-xl">3i</span>
           </div>
-          <Loader2 size={24} className="text-sap-blue animate-spin" />
-          <p className="text-sap-textSecondary text-sap-sm">Loading 3i Logistics ERP...</p>
+          <Loader2 size={24} className="text-[#2563EB] animate-spin" />
+          <p className="text-[#64748B] text-sm">Loading 3i Logistics ERP...</p>
         </div>
       </div>
     )
@@ -53,9 +54,43 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { initialize } = useAuthStore()
+  const { initialize, _loadProfile } = useAuthStore()
 
-  useEffect(() => { initialize() }, [initialize])
+  useEffect(() => {
+    // Initial auth load
+    initialize()
+
+    // ── Visibility change: refresh session when user returns to app ──
+    // This fixes: minimize/switch tab → data not loading on return
+    const handleVisibility = async () => {
+      if (document.visibilityState === 'visible') {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          // Refresh the token silently
+          await supabase.auth.refreshSession()
+          // Re-emit a custom event so all active queries refetch
+          window.dispatchEvent(new CustomEvent('erp:refocus'))
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    // ── Online event: reconnect when network restored ──
+    const handleOnline = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
+        await supabase.auth.refreshSession()
+        window.dispatchEvent(new CustomEvent('erp:refocus'))
+      }
+    }
+    window.addEventListener('online', handleOnline)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('online', handleOnline)
+    }
+  }, [initialize])
 
   return (
     <>
@@ -73,7 +108,6 @@ export default function App() {
             </RequireAuth>
           }
         >
-          {/* Dashboard — both / and /dashboard work */}
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
 
@@ -132,12 +166,12 @@ export default function App() {
           <Route path="promotional/distributions" element={<ComingSoonPage moduleName="Promo Distribution" />} />
 
           {/* ── Reports & Admin ── */}
-          <Route path="reports"               element={<ComingSoonPage moduleName="Reports" />} />
-          <Route path="admin/users"           element={<ComingSoonPage moduleName="User Management" />} />
-          <Route path="admin/roles"           element={<ComingSoonPage moduleName="Role Builder" />} />
-          <Route path="admin/notifications"   element={<ComingSoonPage moduleName="Notifications" />} />
-          <Route path="admin/audit-log"       element={<ComingSoonPage moduleName="Audit Log" />} />
-          <Route path="admin/settings"        element={<ComingSoonPage moduleName="Settings" />} />
+          <Route path="reports"             element={<ComingSoonPage moduleName="Reports" />} />
+          <Route path="admin/users"         element={<ComingSoonPage moduleName="User Management" />} />
+          <Route path="admin/roles"         element={<ComingSoonPage moduleName="Role Builder" />} />
+          <Route path="admin/notifications" element={<ComingSoonPage moduleName="Notifications" />} />
+          <Route path="admin/audit-log"     element={<ComingSoonPage moduleName="Audit Log" />} />
+          <Route path="admin/settings"      element={<ComingSoonPage moduleName="Settings" />} />
 
           <Route path="*" element={<NotFoundPage />} />
         </Route>
