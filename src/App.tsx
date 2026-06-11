@@ -54,7 +54,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { initialize, _loadProfile } = useAuthStore()
+  const { initialize } = useAuthStore()
 
   useEffect(() => {
     // Initial auth load
