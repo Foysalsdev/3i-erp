@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Eye, Edit, Trash2, Building2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { db } from '@/lib/db'
+import { supabase } from '@/lib/supabase'
 import { usePermission } from '@/hooks/usePermission'
 import { useAppStore } from '@/stores/appStore'
 import { auditLog } from '@/lib/auditLog'
@@ -46,23 +47,21 @@ const STATUS_OPTS = [{ value:'Active',label:'Active' },{ value:'Inactive',label:
 const TYPE_OPTS   = [{ value:'3PL Client',label:'3PL Client' },{ value:'Internal',label:'Internal' }]
 
 const columns: TableColumn<Client>[] = [
-  { key:'client_code',  label:'Code',        sortable:true, width:'80px' },
-  { key:'client_name',  label:'Client Name', sortable:true },
-  { key:'client_type',  label:'Type',        sortable:true },
-  { key:'contact_phone',label:'Phone',       render: v => <span>{String(v??'—')}</span> },
-  { key:'sap_enabled',  label:'SAP',         render: v => <SAPBadge status={v ? 'Active' : 'Inactive'} /> },
-  { key:'status',       label:'Status',      render: v => <SAPBadge status={String(v)} /> },
+  { key:'client_code',   label:'Code',        sortable:true, width:'80px' },
+  { key:'client_name',   label:'Client Name', sortable:true },
+  { key:'client_type',   label:'Type',        sortable:true },
+  { key:'contact_phone', label:'Phone',       render: v => <span>{String(v??'—')}</span> },
+  { key:'sap_enabled',   label:'SAP',         render: v => <SAPBadge status={v ? 'Active' : 'Inactive'} /> },
+  { key:'status',        label:'Status',      render: v => <SAPBadge status={String(v)} /> },
 ]
 
 export function ClientsPage() {
   const { showToast } = useAppStore()
-  const canCreate = usePermission('clients','can_create')
-  const canEdit   = usePermission('clients','can_edit')
-  const canDelete = usePermission('clients','can_delete')
+  const qc            = useQueryClient()
+  const canCreate     = usePermission('clients','can_create')
+  const canEdit       = usePermission('clients','can_edit')
+  const canDelete     = usePermission('clients','can_delete')
 
-  const [clients, setClients]           = useState<Client[]>([])
-  const [total, setTotal]               = useState(0)
-  const [loading, setLoading]           = useState(true)
   const [page, setPage]                 = useState(1)
   const [pageSize, setPageSize]         = useState(25)
   const [search, setSearch]             = useState('')
@@ -70,8 +69,6 @@ export function ClientsPage() {
   const [editItem, setEditItem]         = useState<Client|null>(null)
   const [viewItem, setViewItem]         = useState<Client|null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Client|null>(null)
-  const [saving, setSaving]             = useState(false)
-  const [deleting, setDeleting]         = useState(false)
 
   const { register, handleSubmit, reset, setValue, watch, formState:{ errors } } = useForm<Form>({
     resolver: zodResolver(schema),
@@ -79,34 +76,76 @@ export function ClientsPage() {
   })
   const sapEnabled = watch('sap_enabled')
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    try {
-      // clients table uses client_code as PK (no id column)
-      let q = db('clients')
+  // ── React Query fetch — cached 5min, refetches on focus/reconnect ──
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['clients', page, pageSize, search],
+    queryFn: async () => {
+      let q = supabase
+        .from('clients')
         .select('client_code,client_name,client_type,address,contact_person,contact_phone,contact_email,sap_enabled,sap_company_code,warehouse_code,status,remarks', { count:'exact' })
         .order('client_code')
         .range((page-1)*pageSize, page*pageSize-1)
       if (search) q = q.or(`client_name.ilike.%${search}%,client_code.ilike.%${search}%`)
       const { data, count, error } = await q
       if (error) throw error
-      setClients(data ?? [])
-      setTotal(count ?? 0)
-    } catch(err) {
-      handleSupabaseError(err,'Fetch Clients')
-    } finally {
-      setLoading(false)
-    }
-  }, [page, pageSize, search])
+      return { clients: data ?? [], total: count ?? 0 }
+    },
+    staleTime: 5 * 60 * 1000,   // 5 min cache — no refetch on every tab switch
+    placeholderData: prev => prev, // keep showing old data while fetching new
+  })
 
-  useEffect(() => { fetchData() }, [fetchData])
+  const clients = data?.clients ?? []
+  const total   = data?.total   ?? 0
+  const loading = isLoading     // only true on FIRST load (no cached data)
 
-  // Reload when tab becomes visible again
-  useEffect(() => {
-    const handle = () => { if (document.visibilityState === 'visible') fetchData() }
-    document.addEventListener('visibilitychange', handle)
-    return () => document.removeEventListener('visibilitychange', handle)
-  }, [fetchData])
+  // ── Save mutation ──
+  const saveMutation = useMutation({
+    mutationFn: async (form: Form) => {
+      const payload = {
+        client_name:      form.client_name,
+        client_type:      form.client_type,
+        address:          form.address||null,
+        contact_person:   form.contact_person||null,
+        contact_phone:    form.contact_phone||null,
+        contact_email:    form.contact_email||null,
+        sap_enabled:      form.sap_enabled,
+        sap_company_code: form.sap_enabled ? (form.sap_company_code||null) : null,
+        warehouse_code:   form.sap_enabled ? (form.warehouse_code||null)   : null,
+        status:           form.status,
+        remarks:          form.remarks||null,
+      }
+      if (editItem) {
+        const { error } = await supabase.from('clients').update(payload).eq('client_code', editItem.client_code)
+        if (error) throw error
+        await auditLog('UPDATE','clients', editItem.client_code, editItem.client_code)
+      } else {
+        const { error } = await supabase.from('clients').insert({ ...payload, client_code: form.client_code.toUpperCase() })
+        if (error) throw error
+        await auditLog('CREATE','clients', form.client_code, form.client_code)
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['clients'] })
+      showToast(editItem ? 'Client updated.' : 'Client created.', 'success')
+      setModalOpen(false)
+    },
+    onError: (err) => handleSupabaseError(err, 'Save Client'),
+  })
+
+  // ── Delete mutation ──
+  const deleteMutation = useMutation({
+    mutationFn: async (c: Client) => {
+      const { error } = await supabase.from('clients').delete().eq('client_code', c.client_code)
+      if (error) throw error
+      await auditLog('DELETE','clients', c.client_code, c.client_code)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['clients'] })
+      showToast('Client deleted.','success')
+      setDeleteTarget(null)
+    },
+    onError: (err) => handleSupabaseError(err,'Delete Client'),
+  })
 
   function openNew() {
     setEditItem(null)
@@ -118,64 +157,11 @@ export function ClientsPage() {
     reset({
       client_code:c.client_code, client_name:c.client_name, client_type:c.client_type??'3PL Client',
       address:c.address??'', contact_person:c.contact_person??'', contact_phone:c.contact_phone??'',
-      contact_email:c.contact_email??'', sap_enabled:c.sap_enabled, sap_company_code:c.sap_company_code??'',
-      warehouse_code:c.warehouse_code??'', status:c.status, remarks:c.remarks??''
+      contact_email:c.contact_email??'', sap_enabled:c.sap_enabled,
+      sap_company_code:c.sap_company_code??'', warehouse_code:c.warehouse_code??'',
+      status:c.status, remarks:c.remarks??'',
     })
     setModalOpen(true)
-  }
-
-  async function onSubmit(data: Form) {
-    setSaving(true)
-    try {
-      const payload = {
-        client_code:      data.client_code.toUpperCase(),
-        client_name:      data.client_name,
-        client_type:      data.client_type,
-        address:          data.address||null,
-        contact_person:   data.contact_person||null,
-        contact_phone:    data.contact_phone||null,
-        contact_email:    data.contact_email||null,
-        sap_enabled:      data.sap_enabled,
-        sap_company_code: data.sap_enabled ? (data.sap_company_code||null) : null,
-        warehouse_code:   data.sap_enabled ? (data.warehouse_code||null)   : null,
-        status:           data.status,
-        remarks:          data.remarks||null,
-      }
-      if (editItem) {
-        const { error } = await db('clients').update(payload).eq('client_code', editItem.client_code)
-        if (error) throw error
-        await auditLog('UPDATE','clients', editItem.client_code, editItem.client_code)
-        showToast(`Client ${data.client_code} updated.`,'success')
-      } else {
-        const { error } = await db('clients').insert(payload)
-        if (error) throw error
-        await auditLog('CREATE','clients', data.client_code, data.client_code)
-        showToast(`Client ${data.client_code} created.`,'success')
-      }
-      setModalOpen(false)
-      fetchData()
-    } catch(err) {
-      handleSupabaseError(err,'Save Client')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handleDelete() {
-    if (!deleteTarget) return
-    setDeleting(true)
-    try {
-      const { error } = await db('clients').delete().eq('client_code', deleteTarget.client_code)
-      if (error) throw error
-      await auditLog('DELETE','clients', deleteTarget.client_code, deleteTarget.client_code)
-      showToast('Client deleted.','success')
-      setDeleteTarget(null)
-      fetchData()
-    } catch(err) {
-      handleSupabaseError(err,'Delete Client')
-    } finally {
-      setDeleting(false)
-    }
   }
 
   const actionCol: TableColumn<Client> = {
@@ -205,7 +191,10 @@ export function ClientsPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-[#1E293B]">Client Master</h1>
-            <p className="text-sm text-[#64748B]">{total} client{total!==1?'s':''}</p>
+            <p className="text-sm text-[#64748B]">
+              {total} client{total!==1?'s':''}
+              {isFetching && !isLoading && <span className="ml-2 text-[#94A3B8]">↻</span>}
+            </p>
           </div>
         </div>
         {canCreate && (
@@ -235,7 +224,8 @@ export function ClientsPage() {
             : undefined
           }
         />
-        <SAPPagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize}/>
+        <SAPPagination page={page} pageSize={pageSize} total={total}
+          onPageChange={setPage} onPageSizeChange={setPageSize}/>
       </div>
 
       {/* Create/Edit Modal */}
@@ -243,8 +233,8 @@ export function ClientsPage() {
         open={modalOpen} onClose={()=>setModalOpen(false)}
         title={editItem ? `Edit Client — ${editItem.client_code}` : 'New Client'} size="lg"
         footer={<>
-          <SAPButton variant="ghost" onClick={()=>setModalOpen(false)} disabled={saving}>Cancel</SAPButton>
-          <SAPButton variant="emphasized" onClick={handleSubmit(onSubmit)} loading={saving}>
+          <SAPButton variant="ghost" onClick={()=>setModalOpen(false)} disabled={saveMutation.isPending}>Cancel</SAPButton>
+          <SAPButton variant="emphasized" onClick={handleSubmit(d=>saveMutation.mutate(d))} loading={saveMutation.isPending}>
             {editItem ? 'Save Changes' : 'Create Client'}
           </SAPButton>
         </>}
@@ -280,10 +270,8 @@ export function ClientsPage() {
           <SAPFormSection title="SAP Integration" cols={2}>
             <SAPFormRow span={2}>
               <label className="flex items-center gap-3 cursor-pointer select-none">
-                <div
-                  onClick={()=>setValue('sap_enabled',!sapEnabled)}
-                  className={`w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${sapEnabled?'bg-[#2563EB]':'bg-[#E2E8F0]'}`}
-                >
+                <div onClick={()=>setValue('sap_enabled',!sapEnabled)}
+                  className={`w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${sapEnabled?'bg-[#2563EB]':'bg-[#E2E8F0]'}`}>
                   <div className={`w-5 h-5 bg-white rounded-full shadow mt-0.5 transition-transform ${sapEnabled?'translate-x-5':'translate-x-0.5'}`}/>
                 </div>
                 <span className="text-sm text-[#1E293B]">SAP Integration Enabled</span>
@@ -302,8 +290,7 @@ export function ClientsPage() {
       </SAPModal>
 
       {/* View Modal */}
-      <SAPModal
-        open={!!viewItem} onClose={()=>setViewItem(null)}
+      <SAPModal open={!!viewItem} onClose={()=>setViewItem(null)}
         title={`Client — ${viewItem?.client_code??''}`} size="md"
         footer={<>
           {canEdit && viewItem && (
@@ -318,13 +305,12 @@ export function ClientsPage() {
               ['Code',viewItem.client_code],['Name',viewItem.client_name],
               ['Type',viewItem.client_type],['Status',viewItem.status],
               ['Contact',viewItem.contact_person],['Phone',viewItem.contact_phone],
-              ['Email',viewItem.contact_email],
-              ['SAP',viewItem.sap_enabled?'Enabled':'Disabled'],
+              ['Email',viewItem.contact_email],['SAP',viewItem.sap_enabled?'Enabled':'Disabled'],
               ['Company Code',viewItem.sap_company_code],['Warehouse',viewItem.warehouse_code],
               ['Remarks',viewItem.remarks],
             ] as [string,string|null|boolean][])
-              .filter(([,v]) => v !== null && v !== undefined && v !== '')
-              .map(([l,v]) => (
+              .filter(([,v])=>v!==null&&v!==undefined&&v!=='')
+              .map(([l,v])=>(
                 <div key={String(l)}>
                   <p className="text-xs text-[#94A3B8] mb-0.5">{String(l)}</p>
                   <p className="text-sm font-medium text-[#1E293B]">{String(v)}</p>
@@ -337,10 +323,11 @@ export function ClientsPage() {
 
       {/* Delete Confirm */}
       <ConfirmDialog
-        open={!!deleteTarget} onClose={()=>setDeleteTarget(null)} onConfirm={handleDelete}
+        open={!!deleteTarget} onClose={()=>setDeleteTarget(null)}
+        onConfirm={()=>deleteTarget&&deleteMutation.mutate(deleteTarget)}
         title="Delete Client"
         message={`Delete "${deleteTarget?.client_name}"? This cannot be undone.`}
-        confirmLabel="Delete" loading={deleting}
+        confirmLabel="Delete" loading={deleteMutation.isPending}
       />
     </div>
   )
