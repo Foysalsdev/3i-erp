@@ -4,7 +4,9 @@ import { Plus, Eye, Edit, Trash2, Building2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { supabase } from '@/lib/supabase'
+import { supabase as _supabase } from '@/lib/supabase'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const supabase = _supabase as any
 import { usePermission } from '@/hooks/usePermission'
 import { useAppStore } from '@/stores/appStore'
 import { auditLog } from '@/lib/auditLog'
@@ -115,11 +117,11 @@ export function ClientsPage() {
         remarks:          form.remarks||null,
       }
       if (editItem) {
-        const { error } = await supabase.from('clients').update(payload as any).eq('client_code', editItem.client_code)
+        const { error } = await supabase.from('clients').update(payload).eq('client_code', editItem.client_code)
         if (error) throw error
         await auditLog('UPDATE','clients', editItem.client_code, editItem.client_code)
       } else {
-        const { error } = await supabase.from('clients').insert([{ ...payload, client_code: form.client_code.toUpperCase() }] as any)
+        const { error } = await supabase.from('clients').insert([{ ...payload, client_code: form.client_code.toUpperCase() }])
         if (error) throw error
         await auditLog('CREATE','clients', form.client_code, form.client_code)
       }
