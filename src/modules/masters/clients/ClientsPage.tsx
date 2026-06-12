@@ -115,11 +115,11 @@ export function ClientsPage() {
         remarks:          form.remarks||null,
       }
       if (editItem) {
-        const { error } = await supabase.from('clients').update(payload).eq('client_code', editItem.client_code)
+        const { error } = await supabase.from('clients').update(payload as any).eq('client_code', editItem.client_code)
         if (error) throw error
         await auditLog('UPDATE','clients', editItem.client_code, editItem.client_code)
       } else {
-        const { error } = await supabase.from('clients').insert({ ...payload, client_code: form.client_code.toUpperCase() })
+        const { error } = await supabase.from('clients').insert([{ ...payload, client_code: form.client_code.toUpperCase() }] as any)
         if (error) throw error
         await auditLog('CREATE','clients', form.client_code, form.client_code)
       }
